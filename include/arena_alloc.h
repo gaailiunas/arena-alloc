@@ -9,7 +9,7 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif
+#endif // __cplusplus
 
 typedef struct arena_s {
     char *mem;
@@ -17,6 +17,7 @@ typedef struct arena_s {
     size_t offset;
 } arena_t;
 
+/* `initial_sz` in bytes */
 arena_t *arena_new(size_t initial_sz)
 {
     arena_t *arena = (arena_t *)malloc(sizeof(*arena));
@@ -60,7 +61,7 @@ void arena_free(arena_t *arena)
 
 #ifdef __cplusplus
 }
-#endif
+#endif // __cplusplus
 
 #ifdef __cplusplus
 
@@ -104,6 +105,6 @@ class Arena {
 };
 
 } // namespace arena
-#endif
+#endif // __cplusplus
 
 #endif // _ARENA_ALLOC_H
