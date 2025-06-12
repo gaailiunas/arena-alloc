@@ -54,4 +54,4 @@ cmake ..
 ```bash
 sudo cmake --install .
 ```
-Additionally, you can just paste [arena-alloc.h](include/arena_alloc.h) in your project structure and use it from there.
+Additionally, you can just paste [arena_alloc.h](include/arena_alloc.h) in your project structure and use it from there.
