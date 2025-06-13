@@ -1,10 +1,10 @@
 #ifndef _ARENA_ALLOC_H
 #define _ARENA_ALLOC_H
 
+#include <cstddef>
 #include <stddef.h>
 #include <stdlib.h>
 
-#define ALIGNMENT sizeof(int)
 #define ALIGN_UP(n, alignment) ((n + alignment - 1) & ~(alignment - 1))
 
 #ifdef __cplusplus
@@ -15,10 +15,11 @@ typedef struct arena_s {
     char *mem;
     size_t sz;
     size_t offset;
+    size_t alignment;
 } arena_t;
 
 /* `initial_sz` in bytes */
-inline arena_t *arena_new(size_t initial_sz)
+inline arena_t *arena_new(size_t initial_sz, size_t alignment)
 {
     arena_t *arena = (arena_t *)malloc(sizeof(*arena));
     if (arena) {
@@ -29,13 +30,14 @@ inline arena_t *arena_new(size_t initial_sz)
         }
         arena->sz = initial_sz;
         arena->offset = 0;
+        arena->alignment = alignment;
     }
     return arena;
 }
 
 inline void *arena_alloc(arena_t *arena, size_t nbytes)
 {
-    arena->offset = ALIGN_UP(arena->offset, ALIGNMENT);
+    arena->offset = ALIGN_UP(arena->offset, arena->alignment);
     if (arena->offset + nbytes > arena->sz)
         return NULL;
     
@@ -73,27 +75,57 @@ namespace arena {
 class Arena {
     public:
         /* `initial_sz` in bytes */
-        Arena(const std::size_t initial_sz)
+        Arena(const std::size_t initial_sz, const std::size_t alignment = 8) : _dtor_head(nullptr)
         {
-            this->_arena = arena_new(initial_sz);
+            this->_arena = arena_new(initial_sz, alignment);
             if (!this->_arena)
                 throw std::runtime_error("Failed to allocate arena");
         }
 
         ~Arena()
         {
+            DestructorNode *cur = this->_dtor_head;
+            while (cur) {
+                cur->dtor(cur->obj, cur->count);
+                cur = cur->next;
+            }
             arena_free(this->_arena);
         }
 
-        template <typename T>
-        T *alloc(std::size_t count = 1) 
+        template <typename T, std::size_t N, typename... Args>
+        T *alloc(Args &&... args) 
         {
-            void *ptr = arena_alloc(this->_arena, sizeof(T) * count);
-            return ptr ? static_cast<T *>(ptr) : nullptr;
+            void *ptr = arena_alloc(this->_arena, sizeof(T) * N + sizeof(DestructorNode));
+            if (!ptr)
+                return nullptr;
+
+            T *typed = static_cast<T *>(ptr);
+            DestructorNode *node = reinterpret_cast<DestructorNode *>(typed + N);
+
+            for (std::size_t i = 0; i < N; i++)
+                new (typed + i) T(std::forward<Args>(args)...);
+
+            node->next = this->_dtor_head;
+            node->dtor =
+                [](void *p, std::size_t n) {
+                    T *tp = static_cast<T *>(p);
+                    for (std::size_t i = 0; i < n; i++)
+                        tp[i].~T();
+                };
+            node->obj = ptr;
+            node->count = N;
+            this->_dtor_head = node;
+
+            return typed; 
         }
 
         void reset()
         {
+            DestructorNode *cur = this->_dtor_head;
+            while (cur) {
+                cur->dtor(cur->obj, cur->count);
+                cur = cur->next;
+            }
             arena_reset(this->_arena);
         }
 
@@ -103,7 +135,15 @@ class Arena {
         }
 
     private:
+        struct DestructorNode {
+            DestructorNode *next;
+            void (*dtor)(void *, std::size_t);
+            void *obj;
+            std::size_t count;
+        };
+
         arena_t *_arena;
+        DestructorNode *_dtor_head;
 };
 
 } // namespace arena
