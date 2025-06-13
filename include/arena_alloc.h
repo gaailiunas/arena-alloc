@@ -18,7 +18,7 @@ typedef struct arena_s {
 } arena_t;
 
 /* `initial_sz` in bytes */
-arena_t *arena_new(size_t initial_sz)
+inline arena_t *arena_new(size_t initial_sz)
 {
     arena_t *arena = (arena_t *)malloc(sizeof(*arena));
     if (arena) {
@@ -33,7 +33,7 @@ arena_t *arena_new(size_t initial_sz)
     return arena;
 }
 
-void *arena_alloc(arena_t *arena, size_t nbytes)
+inline void *arena_alloc(arena_t *arena, size_t nbytes)
 {
     arena->offset = ALIGN_UP(arena->offset, ALIGNMENT);
     if (arena->offset + nbytes > arena->sz)
@@ -44,17 +44,17 @@ void *arena_alloc(arena_t *arena, size_t nbytes)
     return ptr;
 }
 
-void arena_reset(arena_t *arena)
+inline void arena_reset(arena_t *arena)
 {
     arena->offset = 0;
 }
 
-size_t arena_get_size(arena_t *arena)
+inline size_t arena_get_size(arena_t *arena)
 {
     return arena->sz;
 }
 
-void arena_free(arena_t *arena)
+inline void arena_free(arena_t *arena)
 {
     if (arena->mem)
         free(arena->mem);
