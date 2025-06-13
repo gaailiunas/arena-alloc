@@ -34,8 +34,8 @@ int main(void)
         std::cout << arr[0] << " " << arr[1] << std::endl;    
     }
 
-    Test1 *t1 = arena.alloc<Test1, 1>();
-    Test2 *t2 = arena.alloc<Test2, 1>(100, 200);
+    Test1 *t1 = arena.alloc<Test1>();
+    Test2 *t2 = arena.alloc<Test2>(100, 200);
     // ctors and dtors are called from both t1 and t2
 
     return 0;

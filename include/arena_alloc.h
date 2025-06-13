@@ -84,15 +84,11 @@ class Arena {
 
         ~Arena()
         {
-            DestructorNode *cur = this->_dtor_head;
-            while (cur) {
-                cur->dtor(cur->obj, cur->count);
-                cur = cur->next;
-            }
+            this->destroy();
             arena_free(this->_arena);
         }
 
-        template <typename T, std::size_t N, typename... Args>
+        template <typename T, std::size_t N = 1, typename... Args>
         T *alloc(Args &&... args) 
         {
             void *ptr = arena_alloc(this->_arena, sizeof(T) * N + sizeof(DestructorNode));
@@ -121,11 +117,7 @@ class Arena {
 
         void reset()
         {
-            DestructorNode *cur = this->_dtor_head;
-            while (cur) {
-                cur->dtor(cur->obj, cur->count);
-                cur = cur->next;
-            }
+            this->destroy();
             arena_reset(this->_arena);
         }
 
@@ -144,6 +136,15 @@ class Arena {
 
         arena_t *_arena;
         DestructorNode *_dtor_head;
+
+        void destroy()
+        {
+            DestructorNode *cur = this->_dtor_head;
+            while (cur) {
+                cur->dtor(cur->obj, cur->count);
+                cur = cur->next;
+            }
+        }
 };
 
 } // namespace arena
