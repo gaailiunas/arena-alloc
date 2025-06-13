@@ -1,10 +1,10 @@
 #ifndef _ARENA_ALLOC_H
 #define _ARENA_ALLOC_H
 
-#include <cstddef>
 #include <stddef.h>
 #include <stdlib.h>
 
+#define ARENA_DEFAULT_ALIGNMENT 8
 #define ALIGN_UP(n, alignment) ((n + alignment - 1) & ~(alignment - 1))
 
 #ifdef __cplusplus
@@ -19,7 +19,7 @@ typedef struct arena_s {
 } arena_t;
 
 /* `initial_sz` in bytes */
-inline arena_t *arena_new(size_t initial_sz, size_t alignment)
+static inline arena_t *arena_new(size_t initial_sz, size_t alignment)
 {
     arena_t *arena = (arena_t *)malloc(sizeof(*arena));
     if (arena) {
@@ -35,7 +35,7 @@ inline arena_t *arena_new(size_t initial_sz, size_t alignment)
     return arena;
 }
 
-inline void *arena_alloc(arena_t *arena, size_t nbytes)
+static inline void *arena_alloc(arena_t *arena, size_t nbytes)
 {
     arena->offset = ALIGN_UP(arena->offset, arena->alignment);
     if (arena->offset + nbytes > arena->sz)
@@ -46,17 +46,17 @@ inline void *arena_alloc(arena_t *arena, size_t nbytes)
     return ptr;
 }
 
-inline void arena_reset(arena_t *arena)
+static inline void arena_reset(arena_t *arena)
 {
     arena->offset = 0;
 }
 
-inline size_t arena_get_size(arena_t *arena)
+static inline size_t arena_get_size(arena_t *arena)
 {
     return arena->sz;
 }
 
-inline void arena_free(arena_t *arena)
+static inline void arena_free(arena_t *arena)
 {
     if (arena->mem)
         free(arena->mem);
@@ -75,7 +75,7 @@ namespace arena {
 class Arena {
     public:
         /* `initial_sz` in bytes */
-        Arena(const std::size_t initial_sz, const std::size_t alignment = 8) : _dtor_head(nullptr)
+        Arena(const std::size_t initial_sz, const std::size_t alignment = ARENA_DEFAULT_ALIGNMENT) : _dtor_head(nullptr)
         {
             this->_arena = arena_new(initial_sz, alignment);
             if (!this->_arena)
