@@ -56,6 +56,8 @@ size_t arena_get_size(arena_t *arena)
 
 void arena_free(arena_t *arena)
 {
+    if (arena->mem)
+        free(arena->mem);
     free(arena); 
 }
 
