@@ -1,6 +1,14 @@
 # Arena allocator
-A simple and fast arena allocator designed to be lightweight with memory alignment in mind.
-C++ objects are managed via intrusive linked lists that store destructor function pointers directly within the arena memory.
+A lightweight, high-performance memory arena allocator library for C and C++ with zero runtime overhead.
+
+## Features
+- **Header Only**: Single file integration with no external dependencies
+- **Dual Language Support**: Clean C API with optional C++ wrapper and STL integration
+- **Memory Alignment**: Configurable alignment support for optimal performance
+- **Linear Allocation**: Zero fragmentation with O(1) allocation, with O(n) destructor cleanup for C++ objects
+- **Object Management**: Automatic destructor tracking and cleanup for C++ objects
+- **STL Compatible**: Drop-in allocator for standard containers (vector, map, etc.)
+- **Raw + Typed**: Supports both byte-level and type-safe object allocation
 
 ## Usage 
 ```cpp
