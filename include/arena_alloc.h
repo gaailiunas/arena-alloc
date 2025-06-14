@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <limits.h>
 
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
 #define ARENA_DEFAULT_ALIGNMENT _Alignof(max_align_t)
@@ -25,18 +26,25 @@ struct mem_arena {
     size_t offset;
 };
 
+static inline int arena_init(struct mem_arena *arena, size_t initial_sz)
+{
+    arena->mem = (char *)malloc(initial_sz);
+    if (!arena->mem)
+        return 1;
+    arena->sz = initial_sz;
+    arena->offset = 0;
+    return 0;
+}
+
 /* `initial_sz` in bytes */
 static inline struct mem_arena *arena_new(size_t initial_sz)
 {
     struct mem_arena *arena = (struct mem_arena *)malloc(sizeof(*arena));
     if (arena) {
-        arena->mem = (char *)malloc(initial_sz);
-        if (!arena->mem) {
+        if (arena_init(arena, initial_sz) != 0) {
             free(arena);
             return NULL;
         }
-        arena->sz = initial_sz;
-        arena->offset = 0;
     }
     return arena;
 }
@@ -68,10 +76,17 @@ static inline size_t arena_get_size(const struct mem_arena *arena)
     return arena->sz;
 }
 
-static inline void arena_free(struct mem_arena *arena)
+static inline void arena_cleanup(struct mem_arena *arena)
 {
     if (arena->mem)
         free(arena->mem);
+    arena->offset = 0;
+    arena->sz = 0;
+}
+
+static inline void arena_free(struct mem_arena *arena)
+{
+    arena_cleanup(arena);
     free(arena); 
 }
 
@@ -91,25 +106,24 @@ class Arena {
         /* `initial_sz` in bytes */
         Arena(const std::size_t initial_sz) : _dtor_head(nullptr)
         {
-            this->_arena = arena_new(initial_sz);
-            if (!this->_arena)
-                throw std::runtime_error("Failed to allocate arena");
+            if (arena_init(&this->_arena, initial_sz) != 0)
+                throw std::runtime_error("Failed to initialize arena");
         }
 
         ~Arena()
         {
             this->destroy();
-            arena_free(this->_arena);
+            arena_cleanup(&this->_arena);
         }
 
         template <typename T, std::size_t N = 1, std::size_t alignment = alignof(T), typename... Args>
         T *alloc(Args &&... args) 
         {
-            void *ptr = arena_alloc(this->_arena, sizeof(T) * N, alignment);
+            void *ptr = arena_alloc(&this->_arena, sizeof(T) * N, alignment);
             if (!ptr)
                 return nullptr;
 
-            void *dtorptr = arena_alloc(this->_arena, sizeof(DestructorNode), alignof(DestructorNode));
+            void *dtorptr = arena_alloc(&this->_arena, sizeof(DestructorNode), alignof(DestructorNode));
             if (!dtorptr)
                 return nullptr;
 
@@ -134,18 +148,18 @@ class Arena {
 
         void *alloc_raw(std::size_t nbytes, std::size_t alignment = ARENA_DEFAULT_ALIGNMENT)
         {
-            return arena_alloc(this->_arena, nbytes, alignment);
+            return arena_alloc(&this->_arena, nbytes, alignment);
         }
 
         void reset()
         {
             this->destroy();
-            arena_reset(this->_arena);
+            arena_reset(&this->_arena);
         }
 
         std::size_t size() const
         {
-            return arena_get_size(this->_arena);
+            return arena_get_size(&this->_arena);
         }
 
     private:
@@ -156,7 +170,7 @@ class Arena {
             std::size_t count;
         };
 
-        struct mem_arena *_arena;
+        struct mem_arena _arena;
         DestructorNode *_dtor_head;
 
         void destroy()
