@@ -184,7 +184,8 @@ class ArenaAllocator {
             return static_cast<T *>(ptr);
         }
 
-        void deallocate(T *p, size_type n) noexcept {
+        void deallocate(T *p, size_type n) noexcept
+        {
             // this is an arena allocator and we don't have to deallocate every object individually
         }
         
@@ -201,12 +202,14 @@ class ArenaAllocator {
         }
 
         template<typename U>
-        bool operator==(const ArenaAllocator<U>& other) const noexcept {
+        bool operator==(const ArenaAllocator<U>& other) const noexcept
+        {
             return _arena == other._arena;
         }
 
         template<typename U>
-        bool operator!=(const ArenaAllocator<U>& other) const noexcept {
+        bool operator!=(const ArenaAllocator<U>& other) const noexcept
+        {
             return !(*this == other);
         }
 
