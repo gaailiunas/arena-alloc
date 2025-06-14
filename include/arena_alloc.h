@@ -3,9 +3,17 @@
 
 #include <stddef.h>
 #include <stdlib.h>
+#include <stdint.h>
 
-#define ARENA_DEFAULT_ALIGNMENT 8
-#define ALIGN_UP(n, alignment) ((n + alignment - 1) & ~(alignment - 1))
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+#define ARENA_DEFAULT_ALIGNMENT _Alignof(max_align_t)
+#elif defined(__cplusplus) && __cplusplus >= 201103L
+#define ARENA_DEFAULT_ALIGNMENT alignof(max_align_t)
+#else
+#define ARENA_DEFAULT_ALIGNMENT 16
+#endif
+
+#define ALIGN_UP(ptr, alignment) ((void *)(((uintptr_t)(ptr) + (alignment) - 1) & ~((alignment) - 1)))
 
 #ifdef __cplusplus
 extern "C" {
@@ -15,11 +23,10 @@ struct mem_arena {
     char *mem;
     size_t sz;
     size_t offset;
-    size_t alignment;
 };
 
 /* `initial_sz` in bytes */
-static inline struct mem_arena *arena_new(size_t initial_sz, size_t alignment)
+static inline struct mem_arena *arena_new(size_t initial_sz)
 {
     struct mem_arena *arena = (struct mem_arena *)malloc(sizeof(*arena));
     if (arena) {
@@ -30,20 +37,25 @@ static inline struct mem_arena *arena_new(size_t initial_sz, size_t alignment)
         }
         arena->sz = initial_sz;
         arena->offset = 0;
-        arena->alignment = alignment;
     }
     return arena;
 }
 
-static inline void *arena_alloc(struct mem_arena *arena, size_t nbytes)
+static inline void *arena_alloc(struct mem_arena *arena, size_t nbytes, size_t alignment)
 {
-    arena->offset = ALIGN_UP(arena->offset, arena->alignment);
-    if (arena->offset + nbytes > arena->sz)
-        return NULL;
-    
     void *ptr = arena->mem + arena->offset;
-    arena->offset += nbytes;
-    return ptr;
+    void *ptr_aligned = ALIGN_UP(ptr, alignment);
+    size_t new_offset = (char *)ptr_aligned - arena->mem + nbytes;
+    if (new_offset > arena->sz)
+        return NULL;
+
+    arena->offset = new_offset;
+    return ptr_aligned;
+}
+
+static inline void *arena_alloc_default(struct mem_arena *arena, size_t nbytes)
+{
+    return arena_alloc(arena, nbytes, ARENA_DEFAULT_ALIGNMENT);
 }
 
 static inline void arena_reset(struct mem_arena *arena)
@@ -77,9 +89,9 @@ namespace arena {
 class Arena {
     public:
         /* `initial_sz` in bytes */
-        Arena(const std::size_t initial_sz, const std::size_t alignment = ARENA_DEFAULT_ALIGNMENT) : _dtor_head(nullptr)
+        Arena(const std::size_t initial_sz) : _dtor_head(nullptr)
         {
-            this->_arena = arena_new(initial_sz, alignment);
+            this->_arena = arena_new(initial_sz);
             if (!this->_arena)
                 throw std::runtime_error("Failed to allocate arena");
         }
@@ -90,26 +102,29 @@ class Arena {
             arena_free(this->_arena);
         }
 
-        template <typename T, std::size_t N = 1, typename... Args>
+        template <typename T, std::size_t N = 1, std::size_t alignment = alignof(T), typename... Args>
         T *alloc(Args &&... args) 
         {
-            void *ptr = arena_alloc(this->_arena, sizeof(T) * N + sizeof(DestructorNode));
+            void *ptr = arena_alloc(this->_arena, sizeof(T) * N, alignment);
             if (!ptr)
                 return nullptr;
 
+            void *dtorptr = arena_alloc(this->_arena, sizeof(DestructorNode), alignof(DestructorNode));
+            if (!dtorptr)
+                return nullptr;
+
             T *typed = static_cast<T *>(ptr);
-            DestructorNode *node = reinterpret_cast<DestructorNode *>(typed + N);
+            DestructorNode *node = reinterpret_cast<DestructorNode *>(dtorptr);
 
             for (std::size_t i = 0; i < N; i++)
                 new (typed + i) T(std::forward<Args>(args)...);
 
             node->next = this->_dtor_head;
-            node->dtor =
-                [](void *p, std::size_t n) {
-                    T *tp = static_cast<T *>(p);
-                    for (std::size_t i = 0; i < n; i++)
-                        tp[i].~T();
-                };
+            node->dtor = [](void *p, std::size_t n) {
+                T *tp = static_cast<T *>(p);
+                for (std::size_t i = 0; i < n; i++)
+                    tp[i].~T();
+            };
             node->obj = ptr;
             node->count = N;
             this->_dtor_head = node;
@@ -117,9 +132,9 @@ class Arena {
             return typed; 
         }
 
-        void *alloc_raw(std::size_t nbytes)
+        void *alloc_raw(std::size_t nbytes, std::size_t alignment = ARENA_DEFAULT_ALIGNMENT)
         {
-            return arena_alloc(this->_arena, nbytes);
+            return arena_alloc(this->_arena, nbytes, alignment);
         }
 
         void reset()
@@ -178,7 +193,7 @@ class ArenaAllocator {
 
         T *allocate(size_type n)
         {
-            void *ptr = this->_arena->alloc_raw(n * sizeof(T));
+            void *ptr = this->_arena->alloc_raw(n * sizeof(T), alignof(T));
             if (!ptr)
                 throw std::bad_alloc();
             return static_cast<T *>(ptr);
