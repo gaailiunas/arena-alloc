@@ -1,5 +1,5 @@
-#ifndef _ARENA_ALLOC_H
-#define _ARENA_ALLOC_H
+#ifndef ARENA_ALLOC_H
+#define ARENA_ALLOC_H
 
 #include <stddef.h>
 #include <stdlib.h>
@@ -11,17 +11,17 @@
 extern "C" {
 #endif // __cplusplus
 
-typedef struct arena_s {
+struct mem_arena {
     char *mem;
     size_t sz;
     size_t offset;
     size_t alignment;
-} arena_t;
+};
 
 /* `initial_sz` in bytes */
-static inline arena_t *arena_new(size_t initial_sz, size_t alignment)
+static inline struct mem_arena *arena_new(size_t initial_sz, size_t alignment)
 {
-    arena_t *arena = (arena_t *)malloc(sizeof(*arena));
+    struct mem_arena *arena = (struct mem_arena *)malloc(sizeof(*arena));
     if (arena) {
         arena->mem = (char *)malloc(initial_sz);
         if (!arena->mem) {
@@ -35,7 +35,7 @@ static inline arena_t *arena_new(size_t initial_sz, size_t alignment)
     return arena;
 }
 
-static inline void *arena_alloc(arena_t *arena, size_t nbytes)
+static inline void *arena_alloc(struct mem_arena *arena, size_t nbytes)
 {
     arena->offset = ALIGN_UP(arena->offset, arena->alignment);
     if (arena->offset + nbytes > arena->sz)
@@ -46,17 +46,17 @@ static inline void *arena_alloc(arena_t *arena, size_t nbytes)
     return ptr;
 }
 
-static inline void arena_reset(arena_t *arena)
+static inline void arena_reset(struct mem_arena *arena)
 {
     arena->offset = 0;
 }
 
-static inline size_t arena_get_size(arena_t *arena)
+static inline size_t arena_get_size(const struct mem_arena *arena)
 {
     return arena->sz;
 }
 
-static inline void arena_free(arena_t *arena)
+static inline void arena_free(struct mem_arena *arena)
 {
     if (arena->mem)
         free(arena->mem);
@@ -128,7 +128,7 @@ class Arena {
             arena_reset(this->_arena);
         }
 
-        std::size_t size()
+        std::size_t size() const
         {
             return arena_get_size(this->_arena);
         }
@@ -141,7 +141,7 @@ class Arena {
             std::size_t count;
         };
 
-        arena_t *_arena;
+        struct mem_arena *_arena;
         DestructorNode *_dtor_head;
 
         void destroy()
@@ -214,7 +214,7 @@ class ArenaAllocator {
         }
 
         template<typename U> friend class ArenaAllocator;
-        Arena* get_arena() const { return _arena; }
+        Arena *get_arena() const { return _arena; }
 
     private:
         Arena *_arena;
@@ -223,4 +223,4 @@ class ArenaAllocator {
 } // namespace arena
 #endif // __cplusplus
 
-#endif // _ARENA_ALLOC_H
+#endif // ARENA_ALLOC_H
