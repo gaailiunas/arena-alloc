@@ -173,9 +173,12 @@ class ArenaAllocator {
             using other = ArenaAllocator<U>;
         };
 
+        template <typename U>
+        ArenaAllocator(const ArenaAllocator<U>& other) noexcept : _arena(other._arena) {}
+
         T *allocate(size_type n)
         {
-            void *ptr = this->_arena->alloc_raw(n);
+            void *ptr = this->_arena->alloc_raw(n * sizeof(T));
             if (!ptr)
                 throw std::bad_alloc();
             return static_cast<T *>(ptr);
