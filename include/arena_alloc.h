@@ -115,6 +115,11 @@ class Arena {
             return typed; 
         }
 
+        void *alloc_raw(std::size_t nbytes)
+        {
+            return arena_alloc(this->_arena, nbytes);
+        }
+
         void reset()
         {
             this->destroy();
@@ -144,6 +149,7 @@ class Arena {
                 cur->dtor(cur->obj, cur->count);
                 cur = cur->next;
             }
+            this->_dtor_head = nullptr;
         }
 };
 
