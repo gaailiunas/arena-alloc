@@ -70,6 +70,8 @@ static inline void arena_free(arena_t *arena)
 #ifdef __cplusplus
 
 #include <stdexcept>
+#include <cstddef>
+#include <memory>
 
 namespace arena {
 class Arena {
@@ -151,6 +153,65 @@ class Arena {
             }
             this->_dtor_head = nullptr;
         }
+};
+
+template <typename T>
+class ArenaAllocator {
+    public:
+        using value_type = T;
+        using size_type = std::size_t;
+        using difference_type = std::ptrdiff_t;
+        using pointer = T *;
+        using const_pointer = const T *;
+
+        explicit ArenaAllocator(Arena *arena) noexcept : _arena(arena) {}
+        ArenaAllocator(const ArenaAllocator&) noexcept = default;
+        ArenaAllocator& operator=(const ArenaAllocator&) noexcept = default;
+        
+        template <typename U>
+        struct rebind {
+            using other = ArenaAllocator<U>;
+        };
+
+        T *allocate(size_type n)
+        {
+            void *ptr = this->_arena->alloc_raw(n);
+            if (!ptr)
+                throw std::bad_alloc();
+            return static_cast<T *>(ptr);
+        }
+
+        void deallocate(T *p, size_type n) noexcept {
+            // this is an arena allocator and we don't have to deallocate every object individually
+        }
+        
+        template <typename U, typename ...Args>
+        void construct(U *p, Args&&... args)
+        {
+            new(p) U(std::forward<Args>(args)...);
+        }
+
+        template <typename U>
+        void destroy(U *p)
+        {
+            p->~U();
+        }
+
+        template<typename U>
+        bool operator==(const ArenaAllocator<U>& other) const noexcept {
+            return _arena == other._arena;
+        }
+
+        template<typename U>
+        bool operator!=(const ArenaAllocator<U>& other) const noexcept {
+            return !(*this == other);
+        }
+
+        template<typename U> friend class ArenaAllocator;
+        Arena* get_arena() const { return _arena; }
+
+    private:
+        Arena *_arena;
 };
 
 } // namespace arena
