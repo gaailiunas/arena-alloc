@@ -12,12 +12,16 @@ A lightweight, high-performance memory arena allocator library for C and C++17.
 
 ## Performance
 ### Time complexity
-- **Allocation**: O(1)
-- **Deallocation**:
+- **Allocation**:
   - **C API**: O(1)
-  - **C++ with trivially destructible types**: O(1)
+  - **C++ with trivially constructible types**: O(1)
+  - **C++ with non-trivially constructible types**: O(1) allocation + O(n) construction
+  - **C++ STL containers**: O(1) for trivially constructible types, O(n) for non-trivially constructible types
+- **Deallocation**:
+  - **C API**: O(1) (arena reset)
+  - **C++ with trivially destructible types**: O(1) (arena reset)
   - **C++ with non-trivially destructible types**: O(n)
-  - **C++ STL containers**: O(n) - containers manage their own object lifetimes
+  - **C++ STL containers**: O(1) for trivially destructible types, O(n) for non-trivially destructible types
 
 ### Memory overhead
 - **C API**: zero overhead
