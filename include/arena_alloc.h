@@ -66,7 +66,7 @@
     ((type *)arena_alloc((arena), sizeof(type) * (count), ARENA_ALIGNOF(type)))
 
 #define ARENA_ALLOC(...) \
-    ARENA_ALLOC_GET_MACRO(__VA_ARGS__, ARENA_ALLOC_3, ARENA_ALLOC_2)(__VA_ARGS__)
+    ARENA_ALLOC_GET_MACRO(__VA_ARGS__, ARENA_ALLOC_3, ARENA_ALLOC_2, ARENA_ALLOC_2)(__VA_ARGS__)
 
 #ifdef __cplusplus
 extern "C" {
@@ -166,7 +166,6 @@ static inline void arena_free(struct mem_arena *arena)
 
 #include <stdexcept>
 #include <cstddef>
-#include <memory>
 #include <type_traits>
 
 namespace arena {
