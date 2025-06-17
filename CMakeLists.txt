@@ -38,3 +38,13 @@ install(FILES
     "${CMAKE_CURRENT_BINARY_DIR}/arena_allocConfig.cmake"
     DESTINATION lib/cmake/arena_alloc
 )
+
+project(examples)
+add_executable(example1 examples/1/main.cpp)
+add_executable(example2 examples/2/main.c)
+add_executable(example3 examples/3/main.cpp)
+
+target_link_libraries(example1 PRIVATE arena_alloc::arena_alloc)
+target_link_libraries(example2 PRIVATE arena_alloc::arena_alloc)
+target_link_libraries(example3 PRIVATE arena_alloc::arena_alloc)
+
