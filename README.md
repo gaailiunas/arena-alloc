@@ -1,5 +1,9 @@
 # Arena allocator
-A lightweight, high-performance memory arena allocator library for C and C++17.
+A lightweight, high-performance memory arena allocator library for C and C++.
+
+## Requirements
+- **C**: C99+ compiler with alignof operator extensions (GCC, Clang, MSVC), or C11+ compiler
+- **C++**: C++17 compiler
 
 ## Features
 - **Header Only**: Single file integration with no external dependencies
