@@ -62,9 +62,13 @@ struct Test2 {
         std::cout << "dtor 2: " << _a << " " << _b << std::endl;
     }
 };
+
 int main(void)
 {
-    Arena arena(1024 * 2); // 2 KB
+    //Arena arena(1024 * 2); // 2 KB (mem space is allocated on the heap)
+    char mem[1024 * 2]; // 2 KB
+    Arena arena(mem, sizeof(mem));
+
     int *arr = arena.alloc<int, 2>();
     if (arr) {
         arr[0] = 1337;
@@ -74,7 +78,7 @@ int main(void)
 
     Test1 *t1 = arena.alloc<Test1>();
     Test2 *t2 = arena.alloc<Test2>(100, 200);
-    // ctors and dtors are called from both t1 and t2 (FILO order)
+    // ctors and dtors are called from both t1 and t2
 
     return 0;
 }

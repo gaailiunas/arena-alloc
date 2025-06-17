@@ -56,24 +56,40 @@ struct mem_arena {
     char *mem;
     size_t sz;
     size_t offset;
+
+    // when cleaning up, we know whether to free `mem` or not
+    unsigned char stack; // 0 or 1
 };
 
-static inline int arena_init(struct mem_arena *arena, size_t initial_sz)
+/*
+ * if `mem` is provided, its size must be `initial_sz` bytes
+ */
+static inline int arena_init(struct mem_arena *arena, char *mem, size_t initial_sz)
 {
-    arena->mem = (char *)malloc(initial_sz);
-    if (!arena->mem)
-        return 1;
+    if (!mem) {
+        arena->mem = (char *)malloc(initial_sz);
+        if (!arena->mem)
+            return 1;
+        arena->stack = 0;
+    }
+    else {
+        arena->mem = mem;
+        arena->stack = 1;
+    }
     arena->sz = initial_sz;
     arena->offset = 0;
     return 0;
 }
 
-/* `initial_sz` in bytes */
+/*
+ * Allocates a new memory space on the heap.
+ * `initial_sz` in bytes
+ */
 static inline struct mem_arena *arena_new(size_t initial_sz)
 {
     struct mem_arena *arena = (struct mem_arena *)malloc(sizeof(*arena));
     if (arena) {
-        if (arena_init(arena, initial_sz) != 0) {
+        if (arena_init(arena, NULL, initial_sz) != 0) {
             free(arena);
             return NULL;
         }
@@ -110,7 +126,7 @@ static inline size_t arena_get_size(const struct mem_arena *arena)
 
 static inline void arena_cleanup(struct mem_arena *arena)
 {
-    if (arena->mem)
+    if (arena->mem && arena->stack == 0)
         free(arena->mem);
     arena->offset = 0;
     arena->sz = 0;
@@ -137,9 +153,16 @@ namespace arena {
 class Arena {
     public:
         /* `initial_sz` in bytes */
-        Arena(const std::size_t initial_sz) : _dtor_head(nullptr)
+        explicit Arena(const std::size_t initial_sz) : _dtor_head(nullptr)
         {
-            if (arena_init(&this->_arena, initial_sz) != 0)
+            if (arena_init(&this->_arena, nullptr, initial_sz) != 0)
+                throw std::runtime_error("Failed to initialize arena");
+        }
+
+        /* `initial_sz` in bytes */
+        explicit Arena(char *mem, const std::size_t initial_sz) : _dtor_head(nullptr)
+        {
+            if (arena_init(&this->_arena, mem, initial_sz) != 0)
                 throw std::runtime_error("Failed to initialize arena");
         }
 

@@ -26,7 +26,10 @@ struct Test2 {
 
 int main(void)
 {
-    Arena arena(1024 * 2); // 2 KB
+    //Arena arena(1024 * 2); // 2 KB (mem space is allocated on the heap)
+    char mem[1024 * 2]; // 2 KB
+    Arena arena(mem, sizeof(mem));
+
     int *arr = arena.alloc<int, 2>();
     if (arr) {
         arr[0] = 1337;
