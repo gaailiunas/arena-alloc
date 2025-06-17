@@ -131,6 +131,7 @@ static inline void arena_free(struct mem_arena *arena)
 #include <stdexcept>
 #include <cstddef>
 #include <memory>
+#include <type_traits>
 
 namespace arena {
 class Arena {
@@ -154,26 +155,30 @@ class Arena {
             void *ptr = arena_alloc(&this->_arena, sizeof(T) * N, alignment);
             if (!ptr)
                 return nullptr;
-
-            void *dtorptr = arena_alloc(&this->_arena, sizeof(DestructorNode), ARENA_ALIGNOF(DestructorNode));
-            if (!dtorptr)
-                return nullptr;
-
+          
             T *typed = static_cast<T *>(ptr);
-            DestructorNode *node = reinterpret_cast<DestructorNode *>(dtorptr);
 
-            for (std::size_t i = 0; i < N; i++)
-                new (typed + i) T(std::forward<Args>(args)...);
+            if constexpr (!std::is_trivially_constructible_v<T>) {
+                for (std::size_t i = 0; i < N; i++)
+                    new (typed + i) T(std::forward<Args>(args)...);
+            }
+            
+            if constexpr (!std::is_trivially_destructible_v<T>) {
+                DestructorNode *node = reinterpret_cast<DestructorNode *>(
+                        arena_alloc(&this->_arena, sizeof(DestructorNode), alignof(DestructorNode)));
+                if (!node)
+                    return nullptr;
 
-            node->next = this->_dtor_head;
-            node->dtor = [](void *p, std::size_t n) {
-                T *tp = static_cast<T *>(p);
-                for (std::size_t i = 0; i < n; i++)
-                    tp[i].~T();
-            };
-            node->obj = ptr;
-            node->count = N;
-            this->_dtor_head = node;
+                node->next = this->_dtor_head;
+                node->dtor = [](void *p, std::size_t n) {
+                    T *tp = static_cast<T *>(p);
+                    for (std::size_t i = 0; i < n; i++)
+                        tp[i].~T();
+                };
+                node->obj = ptr;
+                node->count = N;
+                this->_dtor_head = node;
+            } 
 
             return typed; 
         }
@@ -245,23 +250,14 @@ class ArenaAllocator {
             return static_cast<T *>(ptr);
         }
 
+        /*
+         * since stl containers track references of objects, that becomes a massive overhead.
+         */
         void deallocate(T *p, size_type n) noexcept
         {
             // this is an arena allocator and we don't have to deallocate every object individually
         }
         
-        template <typename U, typename ...Args>
-        void construct(U *p, Args&&... args)
-        {
-            new(p) U(std::forward<Args>(args)...);
-        }
-
-        template <typename U>
-        void destroy(U *p)
-        {
-            p->~U();
-        }
-
         template<typename U>
         bool operator==(const ArenaAllocator<U>& other) const noexcept
         {

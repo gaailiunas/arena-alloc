@@ -1,14 +1,35 @@
 # Arena allocator
-A lightweight, high-performance memory arena allocator library for C and C++ with zero runtime overhead.
+A lightweight, high-performance memory arena allocator library for C and C++17.
 
 ## Features
 - **Header Only**: Single file integration with no external dependencies
 - **Dual Language Support**: Clean C API with optional C++ wrapper and STL integration
 - **Memory Alignment**: Configurable alignment support for optimal performance
-- **Linear Allocation**: Zero fragmentation with O(1) allocation, with O(n) destructor cleanup for C++ objects
+- **Linear Allocation**: Zero fragmentation with O(1) allocation, with O(n) destructor cleanup for C++ non-trivially destructible types
 - **Object Management**: Automatic destructor tracking and cleanup for C++ objects
 - **STL Compatible**: Drop-in allocator for standard containers (vector, map, etc.)
 - **Raw + Typed**: Supports both byte-level and type-safe object allocation
+
+## Performance
+### Time complexity
+- **Allocation**:
+  - **C API**: O(1)
+  - **C++ with trivially constructible types**: O(1)
+  - **C++ with non-trivially constructible types**: O(1) allocation + O(n) construction
+  - **C++ STL containers**: O(1) for trivially constructible types, O(n) for non-trivially constructible types
+- **Deallocation**:
+  - **C API**: O(1) (arena reset)
+  - **C++ with trivially destructible types**: O(1) (arena reset)
+  - **C++ with non-trivially destructible types**: O(n)
+  - **C++ STL containers**: O(1) for trivially destructible types, O(n) for non-trivially destructible types
+
+### Memory overhead
+- **C API**: zero overhead
+- **C++ arena class**:
+  - **Per-arena**: 1 pointer for destructor list head
+  - **Per-allocation**: `DestructorNode` for each non-trivially destructible type
+- **C++ `ArenaAllocator` with STL**:
+  - **Per-container**: 1 pointer to arena stored in each container instance. This means `std::vector<int, ArenaAllocator<int>>` is 8 bytes (on 64bit system) and 4 bytes (on 32bit system) larger than `std::vector<int>`
 
 ## Usage 
 ```cpp
@@ -37,7 +58,6 @@ struct Test2 {
         std::cout << "dtor 2: " << _a << " " << _b << std::endl;
     }
 };
-
 int main(void)
 {
     Arena arena(1024 * 2); // 2 KB
