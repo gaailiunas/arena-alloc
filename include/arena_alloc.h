@@ -30,21 +30,21 @@
 #endif
 
 #ifndef __cplusplus
-#if __STDC_VERSION__ >= 202311L
-typedef bool arena_bool;
-#elif __STDC_VERSION__ >= 199901L
-#include <stdbool.h>
-typedef bool arena_bool;
-#endif
+    #if __STDC_VERSION__ >= 202311L
+        typedef bool arena_bool;
+    #elif __STDC_VERSION__ >= 199901L
+        #include <stdbool.h>
+        typedef bool arena_bool;
+    #endif
 #else
-typedef bool arena_bool;
+    typedef bool arena_bool;
 #endif
 
 #if (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L) || \
     (defined(__cplusplus) && __cplusplus >= 201103L)
-#define ARENA_DEFAULT_ALIGNMENT ARENA_ALIGNOF(max_align_t)
+    #define ARENA_DEFAULT_ALIGNMENT ARENA_ALIGNOF(max_align_t)
 #else
-#define ARENA_DEFAULT_ALIGNMENT 16
+    #define ARENA_DEFAULT_ALIGNMENT 16
 #endif
 
 #define ALIGN_UP(ptr, alignment) ((void *)(((uintptr_t)(ptr) + (alignment) - 1) & ~((alignment) - 1)))
