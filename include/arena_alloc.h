@@ -4,7 +4,6 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <limits.h>
 
 #ifdef __cplusplus
     #if __cplusplus >= 201103L
@@ -28,6 +27,17 @@
     #else
         #error "No alignment operator available for this C compiler"
     #endif
+#endif
+
+#ifndef __cplusplus
+#if __STDC_VERSION__ >= 202311L
+typedef bool arena_bool;
+#elif __STDC_VERSION__ >= 199901L
+#include <stdbool.h>
+typedef bool arena_bool;
+#endif
+#else
+typedef bool arena_bool;
 #endif
 
 #if (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L) || \
@@ -58,7 +68,7 @@ struct mem_arena {
     size_t offset;
 
     // when cleaning up, we know whether to free `mem` or not
-    unsigned char stack; // 0 or 1
+    arena_bool custom_space;
 };
 
 /*
@@ -70,11 +80,11 @@ static inline int arena_init(struct mem_arena *arena, char *mem, size_t initial_
         arena->mem = (char *)malloc(initial_sz);
         if (!arena->mem)
             return 1;
-        arena->stack = 0;
+        arena->custom_space = false;
     }
     else {
         arena->mem = mem;
-        arena->stack = 1;
+        arena->custom_space = true;
     }
     arena->sz = initial_sz;
     arena->offset = 0;
@@ -126,7 +136,7 @@ static inline size_t arena_get_size(const struct mem_arena *arena)
 
 static inline void arena_cleanup(struct mem_arena *arena)
 {
-    if (arena->mem && arena->stack == 0)
+    if (arena->mem && !arena->custom_space)
         free(arena->mem);
     arena->offset = 0;
     arena->sz = 0;
