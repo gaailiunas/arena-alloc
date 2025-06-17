@@ -32,12 +32,22 @@
 #ifndef __cplusplus
     #if __STDC_VERSION__ >= 202311L
         typedef bool arena_bool;
+        #define ARENA_TRUE true
+        #define ARENA_FALSE false
     #elif __STDC_VERSION__ >= 199901L
         #include <stdbool.h>
         typedef bool arena_bool;
+        #define ARENA_TRUE true
+        #define ARENA_FALSE false
+    #else
+        typedef int arena_bool;
+        #define ARENA_TRUE 1
+        #define ARENA_FALSE 0
     #endif
 #else
     typedef bool arena_bool;
+    #define ARENA_TRUE true
+    #define ARENA_FALSE false
 #endif
 
 #if (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L) || \
@@ -80,11 +90,11 @@ static inline int arena_init(struct mem_arena *arena, char *mem, size_t initial_
         arena->mem = (char *)malloc(initial_sz);
         if (!arena->mem)
             return 1;
-        arena->custom_space = false;
+        arena->custom_space = ARENA_FALSE;
     }
     else {
         arena->mem = mem;
-        arena->custom_space = true;
+        arena->custom_space = ARENA_TRUE;
     }
     arena->sz = initial_sz;
     arena->offset = 0;
@@ -136,7 +146,7 @@ static inline size_t arena_get_size(const struct mem_arena *arena)
 
 static inline void arena_cleanup(struct mem_arena *arena)
 {
-    if (arena->mem && !arena->custom_space)
+    if (arena->mem && arena->custom_space == ARENA_FALSE)
         free(arena->mem);
     arena->offset = 0;
     arena->sz = 0;
