@@ -226,20 +226,6 @@ class ArenaAllocator {
             // this is an arena allocator and we don't have to deallocate every object individually
         }
         
-        // let std::allocator_traits implement that
-        /*template <typename U, typename ...Args>
-        void construct(U *p, Args&&... args)
-        {
-            new(p) U(std::forward<Args>(args)...);
-        }*/
-
-        // let std::allocator_traits implement that
-        /*template <typename U>
-        void destroy(U *p)
-        {
-            p->~U();
-        }*/
-
         template<typename U>
         bool operator==(const ArenaAllocator<U>& other) const noexcept
         {
