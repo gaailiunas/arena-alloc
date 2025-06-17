@@ -6,15 +6,47 @@
 #include <stdint.h>
 #include <limits.h>
 
-#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
-#define ARENA_DEFAULT_ALIGNMENT _Alignof(max_align_t)
-#elif defined(__cplusplus) && __cplusplus >= 201103L
-#define ARENA_DEFAULT_ALIGNMENT alignof(max_align_t)
+#ifdef __cplusplus
+    #if __cplusplus >= 201103L
+        #define ARENA_ALIGNOF(type) alignof(type)
+    #elif defined(__GNUC__) || defined(__clang__)
+        #define ARENA_ALIGNOF(type) __alignof__(type)
+    #elif defined(_MSC_VER)
+        #define ARENA_ALIGNOF(type) __alignof(type)
+    #else
+        #error "No alignment operator available for this C++ compiler"
+    #endif
+#else  // C language
+    #if __STDC_VERSION__ >= 202311L
+        #define ARENA_ALIGNOF(type) alignof(type)
+    #elif __STDC_VERSION__ >= 201112L
+        #define ARENA_ALIGNOF(type) _Alignof(type)
+    #elif defined(__GNUC__) || defined(__clang__)
+        #define ARENA_ALIGNOF(type) __alignof__(type)
+    #elif defined(_MSC_VER)
+        #define ARENA_ALIGNOF(type) __alignof(type)
+    #else
+        #error "No alignment operator available for this C compiler"
+    #endif
+#endif
+
+#if (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L) || \
+    (defined(__cplusplus) && __cplusplus >= 201103L)
+#define ARENA_DEFAULT_ALIGNMENT ARENA_ALIGNOF(max_align_t)
 #else
 #define ARENA_DEFAULT_ALIGNMENT 16
 #endif
 
 #define ALIGN_UP(ptr, alignment) ((void *)(((uintptr_t)(ptr) + (alignment) - 1) & ~((alignment) - 1)))
+
+#define ARENA_ALLOC_GET_MACRO(_1, _2, _3, NAME, ...) NAME
+#define ARENA_ALLOC_2(arena, type) \
+    ((type *)arena_alloc((arena), sizeof(type), ARENA_ALIGNOF(type)))
+#define ARENA_ALLOC_3(arena, type, count) \
+    ((type *)arena_alloc((arena), sizeof(type) * (count), ARENA_ALIGNOF(type)))
+
+#define ARENA_ALLOC(...) \
+    ARENA_ALLOC_GET_MACRO(__VA_ARGS__, ARENA_ALLOC_3, ARENA_ALLOC_2)(__VA_ARGS__)
 
 #ifdef __cplusplus
 extern "C" {
@@ -117,13 +149,13 @@ class Arena {
             arena_cleanup(&this->_arena);
         }
 
-        template <typename T, std::size_t N = 1, std::size_t alignment = alignof(T), typename... Args>
+        template <typename T, std::size_t N = 1, std::size_t alignment = ARENA_ALIGNOF(T), typename... Args>
         T *alloc(Args &&... args) 
         {
             void *ptr = arena_alloc(&this->_arena, sizeof(T) * N, alignment);
             if (!ptr)
                 return nullptr;
-
+          
             T *typed = static_cast<T *>(ptr);
 
             if constexpr (!std::is_trivially_constructible_v<T>) {
@@ -212,7 +244,7 @@ class ArenaAllocator {
 
         T *allocate(size_type n)
         {
-            void *ptr = this->_arena->alloc_raw(n * sizeof(T), alignof(T));
+            void *ptr = this->_arena->alloc_raw(n * sizeof(T), ARENA_ALIGNOF(T));
             if (!ptr)
                 throw std::bad_alloc();
             return static_cast<T *>(ptr);
