@@ -138,7 +138,11 @@ int main(void)
 
 int main(void)
 {
-    struct mem_arena *arena = arena_new(1024 * 2); // 2 KB
+    //struct mem_arena *arena = arena_new(1024 * 2, 0);
+
+    // arena can can grow in size
+    struct mem_arena *arena = arena_new(1024 * 2, ARENA_FL_GROW); // 2 KB
+    
     if (arena) {
         //int *arr = (int *)arena_alloc_default(arena, sizeof(int) * 2);
         int *arr = ARENA_ALLOC(arena, int, 2); // manages alignment internally

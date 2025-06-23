@@ -29,8 +29,8 @@
     #endif
 #endif
 
-#define ARENA_TRUE 1
-#define ARENA_FALSE 0
+#define ARENA_FL_GROW 1 << 0
+#define ARENA_FL_CUSTOM_SPACE 1 << 1
 
 #if (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L) || \
     (defined(__cplusplus) && __cplusplus >= 201103L)
@@ -60,30 +60,26 @@ struct mem_arena {
     char *mem;
     size_t sz;
     size_t offset;
-
-    // when cleaning up, we know whether to free `mem` or not
-    uint8_t custom_space : 1;
-    uint8_t grow : 1;
+    uint8_t flags;
 };
 
 /*
  * if `mem` is provided, its size must be `initial_sz` bytes
  */
 
-static inline int arena_init(struct mem_arena *arena, char *mem, size_t initial_sz, uint8_t growth)
+static inline int arena_init(struct mem_arena *arena, char *mem, size_t initial_sz, uint8_t flags)
 {
     if (!mem) {
         arena->mem = (char *)malloc(initial_sz);
         if (!arena->mem)
             return 1;
-        arena->custom_space = ARENA_FALSE;
     }
     else {
         arena->mem = mem;
-        arena->custom_space = ARENA_TRUE;
+        flags |= ARENA_FL_CUSTOM_SPACE;
     }
 
-    arena->grow = growth;
+    arena->flags = flags;
     arena->sz = initial_sz;
     arena->offset = 0;
     return 0;
@@ -101,11 +97,11 @@ static inline double arena_get_load_factor(struct mem_arena *arena)
  * `initial_sz` in bytes
  */
 
-static inline struct mem_arena *arena_new(size_t initial_sz, uint8_t growth)
+static inline struct mem_arena *arena_new(size_t initial_sz, uint8_t flags)
 {
     struct mem_arena *arena = (struct mem_arena *)malloc(sizeof(*arena));
     if (arena) {
-        if (arena_init(arena, NULL, initial_sz, growth) != 0) {
+        if (arena_init(arena, NULL, initial_sz, flags) != 0) {
             free(arena);
             return NULL;
         }
@@ -121,7 +117,7 @@ static inline void *arena_alloc(struct mem_arena *arena, size_t nbytes, size_t a
     size_t new_offset = aligned_offset + nbytes;
 
     if (new_offset > arena->sz) {
-        if (arena->grow == ARENA_TRUE) {
+        if (arena->flags & ARENA_FL_GROW) {
             double load_factor = arena_get_load_factor(arena);
             size_t new_size = arena->sz + arena->sz * load_factor;
 
@@ -164,7 +160,7 @@ static inline size_t arena_get_size(const struct mem_arena *arena)
 
 static inline void arena_cleanup(struct mem_arena *arena)
 {
-    if (arena->mem && arena->custom_space == ARENA_FALSE)
+    if (arena->mem && !(arena->flags & ARENA_FL_CUSTOM_SPACE))
         free(arena->mem);
     arena->offset = 0;
     arena->sz = 0;
@@ -191,16 +187,16 @@ namespace arena {
 class Arena {
     public:
         /* `initial_sz` in bytes */
-        explicit Arena(const std::size_t initial_sz, const std::uint8_t growth = ARENA_FALSE) : _dtor_head(nullptr)
+        explicit Arena(const std::size_t initial_sz, const uint8_t flags = 0) : _dtor_head(nullptr)
         {
-            if (arena_init(&this->_arena, nullptr, initial_sz, growth) != 0)
+            if (arena_init(&this->_arena, nullptr, initial_sz, flags) != 0)
                 throw std::runtime_error("Failed to initialize arena");
         }
 
         /* `initial_sz` in bytes */
-        explicit Arena(char *mem, const std::size_t initial_sz, const std::uint8_t growth = ARENA_FALSE) : _dtor_head(nullptr)
+        explicit Arena(char *mem, const std::size_t initial_sz, const std::uint8_t flags = 0) : _dtor_head(nullptr)
         {
-            if (arena_init(&this->_arena, mem, initial_sz, growth) != 0)
+            if (arena_init(&this->_arena, mem, initial_sz, flags) != 0)
                 throw std::runtime_error("Failed to initialize arena");
         }
 
