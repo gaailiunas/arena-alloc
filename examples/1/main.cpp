@@ -1,3 +1,5 @@
+#define ARENA_DYNAMIC_LOAD_FACTOR
+#define ARENA_DEFAULT_LOAD_FACTOR 1.5
 #include <arena_alloc.h>
 #include <iostream>
 
@@ -29,6 +31,12 @@ int main(void)
     //Arena arena(1024 * 2); // 2 KB (mem space is allocated on the heap)
     char mem[1024 * 2]; // 2 KB
     Arena arena(mem, sizeof(mem));
+
+    mem_arena *a = arena.get();
+    std::cout << "default load factor: " << a->load_factor << std::endl; // 1.5
+
+    // demonstrating dynamic load factor
+    a->load_factor = 1.2;
 
     int *arr = arena.alloc<int, 2>();
     if (arr) {
